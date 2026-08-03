@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quiz Generator</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f0f17; color: #e8e8f0; min-height: 100vh; padding: 32px 16px; }
+  .container { max-width: 780px; margin: 0 auto; }
+  h1 { font-size: 26px; font-weight: 700; margin-bottom: 4px; background: linear-gradient(90deg, #a78bfa, #60a5fa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .subtitle { color: #888; font-size: 13px; margin-bottom: 24px; }
+  .card { background: #1a1a28; border: 1px solid #2a2a3a; border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+  .banner { width: 100%; border-radius: 10px; margin-bottom: 18px; display: block; background: #12121e; }
+  label { display: block; font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; font-weight: 600; }
+  select, textarea { width: 100%; background: #0f0f17; border: 1px solid #2a2a3a; border-radius: 8px; color: #e8e8f0; padding: 12px 14px; font-size: 14px; font-family: inherit; resize: vertical; outline: none; transition: border-color 0.2s; }
+  select { padding: 10px 14px; cursor: pointer; }
+  select:focus, textarea:focus { border-color: #7c3aed; }
+  input[type="number"] { width: 100%; background: #0f0f17; border: 1px solid #2a2a3a; border-radius: 8px; color: #e8e8f0; padding: 10px 14px; font-size: 16px; font-family: inherit; outline: none; }
+  input[type="number"]:focus { border-color: #7c3aed; }
+  input[type="range"] { width: 100%; accent-color: #7c3aed; }
+  .form-row { margin-bottom: 20px; }
+  .row-inline { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #bbb; }
+  .row-inline input { width: auto; accent-color: #7c3aed; }
+  .count-display { font-weight: 700; color: #a78bfa; }
+  .btn { width: 100%; padding: 13px; background: #7c3aed; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; }
+  .btn:hover { background: #6d28d9; }
+  .btn:disabled { background: #3a3a4a; cursor: not-allowed; }
+  .loading { text-align: center; color: #888; font-size: 14px; padding: 16px; display: none; }
+  .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #333; border-top-color: #7c3aed; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .quiz-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; color: #a78bfa; }
+  .question-card { background: #12121e; border: 1px solid #2a2a3a; border-radius: 10px; padding: 18px 20px; margin-bottom: 16px; }
+  .question-text { font-size: 15px; font-weight: 600; margin-bottom: 14px; line-height: 1.5; }
+  .options { display: flex; flex-direction: column; gap: 8px; }
+  .option { padding: 9px 13px; border-radius: 6px; font-size: 14px; border: 1px solid #2a2a3a; background: #1a1a28; cursor: pointer; transition: background 0.15s; }
+  .option:hover { background: #22223a; }
+  .option.correct { background: #0d2e1a; border-color: #22c55e; color: #4ade80; }
+  .option.wrong { background: #2e0d0d; border-color: #ef4444; color: #f87171; }
+  .option.reveal { background: #0d2e1a; border-color: #22c55e; color: #4ade80; }
+  .action-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .reveal-btn { padding: 7px 14px; background: none; border: 1px solid #3a3a5a; border-radius: 6px; color: #999; font-size: 12px; cursor: pointer; }
+  .reveal-btn:hover { border-color: #7c3aed; color: #a78bfa; }
+  .hint-btn { border-color: #4a3a1a; color: #d4a94a; }
+  .hint-btn:hover { border-color: #d4a94a; color: #f0c774; }
+  .hint-text { margin-top: 10px; font-size: 13px; color: #f0c774; background: #241d0d; border: 1px solid #4a3a1a; border-radius: 6px; padding: 8px 12px; display: none; }
+  .error-box { background: #2e0d0d; border: 1px solid #ef4444; border-radius: 8px; padding: 14px 18px; color: #f87171; font-size: 14px; display: none; margin-bottom: 12px; }
+  .score-bar { background: #1a1a28; border: 1px solid #2a2a3a; border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; font-size: 14px; }
+  .score-value { font-size: 22px; font-weight: 700; color: #a78bfa; }
+  .bank-note { font-size: 12px; color: #7c9; background: #0d2e1a1a; border: 1px dashed #22c55e55; border-radius: 8px; padding: 8px 12px; margin-top: 12px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Quiz Generator</h1>
+  <p class="subtitle">Pick a story (or paste your own), choose how many questions, get a quiz — with hints!</p>
+
+  <div class="card">
+    <svg id="banner" class="banner" viewBox="0 0 700 180" xmlns="http://www.w3.org/2000/svg"></svg>
+
+    <div class="form-row">
+      <label>Choose content</label>
+      <select id="presetSelect" onchange="applyPreset()">
+        <option value="custom">✏️ Custom — paste your own text</option>
+        <option value="dinosaur">🦖 Why Were Dinosaurs Important? (built-in, 50 ready-made questions)</option>
+        <option value="lighthouse">🏮 The Lighthouse Keeper's Secret (an original story)</option>
+      </select>
+    </div>
+
+    <div class="form-row">
+      <label>Story / text</label>
+      <textarea id="storyInput" rows="8" placeholder="Type or paste your own story or text here..."></textarea>
+    </div>
+
+    <div class="form-row" id="bankRow" style="display:none;">
+      <div class="row-inline">
+        <input type="checkbox" id="useBankCheckbox" checked onchange="toggleBankNote()">
+        <span>Use the built-in 50-question bank for this story instead of calling the API (faster, no API key needed)</span>
+      </div>
+      <div class="bank-note" id="bankNote">Built-in bank mode is enabled. This returns instant questions from the dinosaur question set.</div>
+    </div>
+
+    <div class="form-row">
+      <label>Number of questions: <span class="count-display" id="countLabel">3</span></label>
+      <input type="range" id="countInput" min="1" max="50" value="3" oninput="document.getElementById('countLabel').textContent = this.value">
+    </div>
+
+    <div class="error-box" id="errorBox"></div>
+    <button class="btn" id="generateBtn" onclick="generateQuiz()">Generate Quiz</button>
+    <div class="loading" id="loading">
+      <span class="spinner"></span> Generating your quiz...
+    </div>
+  </div>
+
+  <div id="quizOutput"></div>
+</div>
+
+<script>
+  let currentAnswers = {};
+
+  const STORIES = {
+    dinosaur: `## Why Were Dinosaurs Important?
+
+Dinosaurs weren't just "big lizards." They were the dominant land animals on Earth for about 165 million years, from around 230 million to 66 million years ago. That's an incredibly long time—humans have existed for only about 300,000 years.
+
+During their reign, dinosaurs played a major role in shaping Earth's ecosystems.
+
+1. They Kept Ecosystems Balanced
+Just like lions, wolves, elephants, and deer help maintain ecosystems today, dinosaurs did the same in prehistoric times. Large plant-eating dinosaurs ate huge amounts of vegetation, preventing forests from becoming overgrown. Meat-eating dinosaurs kept populations of herbivores under control. Their movement spread seeds, disturbed soil, and influenced where plants could grow. Every species had a role in keeping nature balanced.
+
+2. They Help Us Understand Evolution
+Dinosaurs show us how life changes over millions of years. One of the most exciting discoveries in modern paleontology is that birds evolved from small feathered dinosaurs. This means that birds aren't just related to dinosaurs—they are living dinosaurs. Studying dinosaur fossils helps scientists understand how animals evolved, adapted, and survived changing environments.
+
+3. Their Extinction Changed Earth's Future
+When the asteroid struck, most dinosaurs disappeared. That created empty habitats. Small mammals, which had mostly lived in the shadows of dinosaurs, began to spread into those empty niches. Over millions of years, some evolved into primates, and eventually into humans. Without the extinction of the non-avian dinosaurs, life on Earth could have looked very different.
+
+What If Dinosaurs Were Still Alive Today?
+No one can know for sure, but scientists have some ideas. If giant predators like T. rex still existed, people would need to think carefully about where they built cities, roads, and farms. Large protected areas would likely be needed to reduce conflicts between humans and dinosaurs—much like national parks help protect elephants, lions, and other large wildlife today. Dinosaurs would shape forests, grasslands, and food webs in ways we can only imagine. Some plants and animals that exist today might be less common—or might never have evolved. If dinosaurs were alive today, scientists could study how they grew, how they behaved, how they communicated, whether some species cared for their young, and how feathers evolved into flight. Many questions we can only guess at from fossils could be answered by direct observation.
+
+Why Are Fossils So Important?
+Fossils are like Earth's history books. They tell us what animals looked like, what they ate, how they moved, how climates changed over time, how continents shifted, and how mass extinctions happened. By studying dinosaurs, scientists also learn how life responds to major environmental changes—knowledge that can help us understand today's changing world.
+
+A Fun Thought Experiment
+If the asteroid had missed Earth, it's possible that dinosaurs would still dominate many ecosystems today. Humans might never have evolved—or, if intelligent life did evolve, it could have been from a completely different lineage. Whether or not that would have happened is impossible to know. Evolution doesn't follow a fixed plan.
+
+Why We Still Care About Dinosaurs
+People love dinosaurs because they combine science, mystery, and imagination. But they're also scientifically important because they help answer some of the biggest questions: How does evolution work? How do ecosystems stay balanced? What happens during a mass extinction? How did birds evolve? How did Earth's history shape the world we live in today? Dinosaurs aren't just creatures from the past—they're one of the best windows we have into the history of life on Earth.`,
+    lighthouse: `## The Lighthouse Keeper's Secret
+
+For forty years, old Mara Voss tended the lighthouse on Gull's Point, a rocky spit of land where the coast bent sharply and the currents turned dangerous. Ships trusted her lamp more than any chart. Every evening at dusk, she climbed the one hundred and twelve spiral steps to light the great lens, and every morning she climbed back down to sleep through the day.
+
+The villagers below knew little about her, only that she had arrived as a young woman with a single trunk and had never once left the point since. They whispered that she had lost someone at sea, though no one could say who. Mara never corrected them, and never confirmed it either.
+
+What the villagers did not know was that Mara kept a logbook separate from the official shipping records. In it, she wrote down the exact time and weather of every storm, and beside each entry she drew a small symbol: a wave, a bird, or a star. Only Mara understood what the symbols meant. They were a code she had invented as a girl, taught to her by her father, who had also tended a lighthouse on a distant coast.
+
+One September night, a fishing boat called the Elenor lost its engine in a sudden squall. The crew fired a flare, but the wind tore the light away before anyone on shore could see it. Mara, watching from the lamp room as she always did, noticed the flare's faint glow reflected for half a second on the underside of the clouds. She recognized the pattern instantly, because her father had once described exactly this kind of reflection during his own years at sea.
+
+She rang the point's old brass bell, a signal not used in a decade, and rowed out herself into the storm with two younger fishermen who came running at the sound. Together they found the Elenor drifting toward the rocks and towed it to safety just before dawn.
+
+When asked afterward how she had known where to look, Mara only said that the sky sometimes tells you where to search, if you know how to read it. She returned to her logbook that night and drew a small star beside the entry, just as she always did when the sea gave something back instead of taking it away.
+
+Years later, after Mara had passed, a young keeper found the logbook in a drawer and spent a whole winter working out her symbols. He realized, slowly, that the code was not really about weather at all. It was a record of every life the light had ever helped save, disguised as notes about the wind. There were more stars in that book than anyone in the village had ever guessed.`
+  };
+
+  const DINO_BANK = [
+    {q:"For roughly how long were dinosaurs the dominant land animals on Earth?", o:["16.5 million years","65 million years","165 million years","300,000 years"], c:"C", h:"The article compares this figure to how long humans have existed."},
+    {q:"According to the article, dinosaurs became dominant land animals around how long ago?", o:["66 million years ago","230 million years ago","4.6 billion years ago","10,000 years ago"], c:"B", h:"This is the earlier of the two big numbers mentioned in the intro."},
+    {q:"When did the age of dinosaurs end, according to the text?", o:["165 million years ago","1 million years ago","66 million years ago","300,000 years ago"], c:"C", h:"This is the same number linked to the asteroid impact."},
+    {q:"About how long have humans existed, according to the article?", o:["300,000 years","3 million years","30,000 years","165 million years"], c:"A", h:"It's used to show how much shorter our existence is compared to dinosaurs'."},
+    {q:"The article compares dinosaur reign length to something else to show scale. What is that comparison?", o:["The age of the universe","How long humans have existed","The age of the moon","How long Earth has had oceans"], c:"B", h:"Look at the very first section of the article."},
+    {q:"What role did large plant-eating dinosaurs play in their ecosystems?", o:["They dug underground tunnels","They ate huge amounts of vegetation, preventing overgrowth","They built nests for other species","They controlled ocean temperatures"], c:"B", h:"Think about what a big herbivore's diet does to plant growth."},
+    {q:"What role did meat-eating dinosaurs play, according to the text?", o:["They kept herbivore populations under control","They pollinated flowers","They created new rivers","They protected herbivores from disease"], c:"A", h:"This mirrors what predators do in modern ecosystems."},
+    {q:"Besides eating, how else did dinosaurs influence plant life?", o:["By absorbing carbon dioxide","By spreading seeds and disturbing soil through movement","By producing oxygen","By burning forests"], c:"B", h:"Think about what happens as a large animal walks and moves through an area."},
+    {q:"The text compares dinosaurs' ecological role to which modern animals?", o:["Sharks and dolphins","Lions, wolves, elephants, and deer","Ants and bees","Eagles and owls"], c:"B", h:"These are the animals mentioned as keeping today's ecosystems balanced."},
+    {q:"According to the article, what did every dinosaur species have, ecologically speaking?", o:["A migration pattern","A role in keeping nature balanced","A predator-free life","A hibernation cycle"], c:"B", h:"This idea closes out the first main section."},
+    {q:"What surprising fact does the article mention about the evolutionary history of birds?", o:["Birds evolved from fish","Birds evolved from small feathered dinosaurs","Birds evolved from mammals","Birds have no evolutionary link to dinosaurs"], c:"B", h:"This is described as one of the most exciting discoveries in paleontology."},
+    {q:"How does the article describe modern birds in relation to dinosaurs?", o:["Distant cousins with no real connection","Living dinosaurs","Descendants of mammals","Unrelated species that look similar"], c:"B", h:"The text says birds 'are' something, not just 'related to' something."},
+    {q:"Why does studying dinosaur fossils help scientists, according to the text?", o:["It helps them understand how animals evolved, adapted, and survived changing environments","It helps them build better zoos","It helps them predict the weather","It helps them design new medicines"], c:"A", h:"This is stated directly under the evolution section."},
+    {q:"What event caused most dinosaurs to disappear, according to the article?", o:["A volcanic winter","An asteroid strike","A disease outbreak","A slow climate shift over billions of years"], c:"B", h:"Think of the single dramatic event mentioned at the start of the extinction section."},
+    {q:"What did the extinction of most dinosaurs create, according to the text?", o:["New oceans","Empty habitats","More predators","A second ice age"], c:"B", h:"This is what allowed small mammals to spread."},
+    {q:"Where had small mammals mostly lived before the extinction, according to the article?", o:["Underground caves","In the shadows of dinosaurs","On isolated islands","In the polar regions"], c:"B", h:"The phrase used involves living somewhere 'in the shadows' of something bigger."},
+    {q:"What did small mammals do after the dinosaurs' extinction, per the text?", o:["They went extinct too","They spread into the empty niches","They stayed the same size","They merged with reptile species"], c:"B", h:"This directly follows the mention of empty habitats."},
+    {q:"According to the article, what did some mammals eventually evolve into, over millions of years?", o:["Birds","Primates, and eventually humans","Dinosaurs again","Marine mammals only"], c:"B", h:"This is the final step in the chain: mammals to what to humans."},
+    {q:"What does the article suggest about life on Earth if the non-avian dinosaurs had not gone extinct?", o:["Life would look exactly the same","Life on Earth could have looked very different","Humans would have evolved much faster","Dinosaurs would have gone extinct anyway"], c:"B", h:"This is the closing thought of the extinction section."},
+    {q:"If giant predators like T. rex still existed today, what does the article say humans would need to think carefully about?", o:["What to eat for dinner","Where to build cities, roads, and farms","How to swim faster","How to communicate with dinosaurs"], c:"B", h:"Think about human infrastructure and safety."},
+    {q:"According to the article, what kind of areas would likely be needed to reduce human-dinosaur conflict?", o:["Underwater sanctuaries","Large protected areas","Small backyard fences","Floating cities"], c:"B", h:"The article compares this to something that already exists for elephants and lions."},
+    {q:"The article compares hypothetical dinosaur protection zones to real modern examples. What are they?", o:["Aquariums","National parks","Zoos","Botanical gardens"], c:"B", h:"Think of large, protected wild spaces that exist today for big animals."},
+    {q:"According to the article, how might ecosystems be different if dinosaurs were still alive?", o:["There would be no forests at all","They would shape forests, grasslands, and food webs differently","All animals would be identical to today's","Only oceans would be affected"], c:"B", h:"This idea appears under the ecosystems heading."},
+    {q:"What does the article say about some of today's plants and animals in a world where dinosaurs never went extinct?", o:["They would definitely still exist unchanged","Some might be less common or might never have evolved","They would all be extinct","They would be larger than today"], c:"B", h:"This is a 'might' statement, not a certainty."},
+    {q:"According to the article, what could scientists study if dinosaurs were alive today?", o:["How they grew, behaved, and communicated","How they invented tools","How they built cities","How they spoke human languages"], c:"A", h:"This is one of several bullet points under 'Science Would Be Amazing.'"},
+    {q:"Which of these is listed as something scientists could observe directly if dinosaurs were alive, per the text?", o:["Whether some species cared for their young","Whether dinosaurs could read","Whether dinosaurs used tools","Whether dinosaurs had governments"], c:"A", h:"Think about parenting behavior in animals."},
+    {q:"According to the article, what could living dinosaurs help scientists understand about flight?", o:["How airplanes were invented","How feathers evolved into flight","How birds migrate","How insects fly"], c:"B", h:"This connects dinosaur feathers to a modern ability birds have."},
+    {q:"How does the article describe fossils, metaphorically?", o:["Earth's diaries","Earth's history books","Nature's fingerprints","Time capsules from space"], c:"B", h:"Think of a metaphor involving books."},
+    {q:"According to the article, fossils can tell scientists what animals looked like and what else?", o:["What they ate","What they dreamed about","What language they spoke","Their favorite habitat colors"], c:"A", h:"This is a very concrete, physical piece of information fossils reveal."},
+    {q:"Besides diet and appearance, what else do fossils reveal, according to the article?", o:["How animals moved","Their exact weight in kilograms","Their exact lifespans in years","Their family names"], c:"A", h:"Think about locomotion, not exact numbers."},
+    {q:"Fossils help scientists understand how climates changed and how something else shifted. What is it?", o:["Ocean currents","Continents","Magnetic poles","Star positions"], c:"B", h:"This is about the large landmasses of Earth moving over time."},
+    {q:"What large-scale events can fossils help scientists understand, per the text?", o:["Mass extinctions","Solar eclipses","Historical recipes","Human wars"], c:"A", h:"This connects back to how dinosaurs themselves disappeared."},
+    {q:"The article says studying dinosaurs helps scientists understand something relevant to today. What is it?", o:["How to build better cities","How life responds to major environmental changes","How to cure all diseases","How to travel to space"], c:"B", h:"This links prehistoric extinction lessons to our 'changing world' today."},
+    {q:"In the thought experiment, what does the article suggest might have happened if the asteroid had missed Earth?", o:["Dinosaurs would have gone extinct anyway from old age","Dinosaurs might still dominate many ecosystems today","Humans would have evolved even faster","The asteroid would have destroyed the moon instead"], c:"B", h:"Think about what continuing dinosaur dominance would mean for other species."},
+    {q:"If the asteroid had missed Earth, what does the article suggest about humans?", o:["Humans would definitely still have evolved on schedule","Humans might never have evolved, or intelligent life could come from another lineage","Humans would be much larger","Humans would be aquatic"], c:"B", h:"This is presented as a genuine uncertainty, not a fact."},
+    {q:"According to the article, what is true about evolution's 'plan'?", o:["Evolution follows a fixed plan toward intelligence","Evolution doesn't follow a fixed plan","Evolution always favors the largest animals","Evolution repeats in exact cycles"], c:"B", h:"This sentence directly follows the discussion of the missed-asteroid scenario."},
+    {q:"Why does the article say people love dinosaurs?", o:["Because they combine science, mystery, and imagination","Because they are easy to draw","Because they appear in every culture's mythology","Because they are still alive today"], c:"A", h:"This is in the final section, before the list of big questions."},
+    {q:"According to the article, which is one of the 'big questions' dinosaurs help answer?", o:["How does evolution work?","What is the speed of light?","How do computers work?","What causes volcanoes?"], c:"A", h:"This is the first bullet point in the closing list of big questions."},
+    {q:"Which 'big question' from the article's final list relates to balance in nature?", o:["How do ecosystems stay balanced?","How fast do ecosystems grow?","How many species exist today?","How do ecosystems communicate?"], c:"A", h:"This echoes the article's very first main section about balance."},
+    {q:"Which big question in the article's conclusion is specifically about birds?", o:["How did birds evolve?","Why do birds migrate?","How do birds build nests?","Why do birds sing?"], c:"A", h:"This connects to the earlier section about feathered dinosaurs."},
+    {q:"According to the closing section, dinosaurs help us understand how Earth's history shaped what?", o:["The solar system","The world we live in today","Only the ocean floor","Only the polar ice caps"], c:"B", h:"This is the last of the five listed 'big questions.'"},
+    {q:"How does the article describe dinosaurs in its very last line?", o:["As failed experiments of evolution","As one of the best windows we have into the history of life on Earth","As proof that evolution is random","As the ancestors of all mammals"], c:"B", h:"Think of a 'window' metaphor used to close the article."},
+    {q:"According to the article, what did dinosaurs' movement disturb, helping influence where plants could grow?", o:["Rivers","Soil","Mountains","Clouds"], c:"B", h:"This is tied to seed spreading in the balanced-ecosystems section."},
+    {q:"What does the article say large plant-eating dinosaurs' impact on vegetation helped prevent?", o:["Forests becoming overgrown","Deserts forming","Rivers drying up","Oceans rising"], c:"A", h:"Too much uneaten vegetation would lead to this outcome."},
+    {q:"According to the article, herbivorous dinosaurs' eating habits mainly affected what?", o:["The amount of vegetation in an area","The temperature of the atmosphere","The salinity of the oceans","The number of volcanoes"], c:"A", h:"Think about what a huge appetite for plants directly changes."},
+    {q:"What word does the article use to describe the discovery linking birds and dinosaurs?", o:["Confusing","Exciting","Depressing","Irrelevant"], c:"B", h:"It's described as one of the most ___ discoveries in modern paleontology."},
+    {q:"According to the article, what happened to habitats immediately after the extinction event?", o:["They became overcrowded","They became empty","They turned to ice","They filled with water"], c:"B", h:"This directly enabled small mammals to spread."},
+    {q:"The article suggests observing living dinosaurs could reveal whether some species did what for their young?", o:["Taught them to hunt","Cared for them","Sent them away immediately","Ignored them completely"], c:"B", h:"This is about parental care, listed among things scientists could observe."},
+    {q:"According to the article, what do fossils tell us about mass extinctions?", o:["Exactly which humans caused them","How mass extinctions happened","When the next one will occur","How to prevent them completely"], c:"B", h:"This is one of six things listed under 'Why Are Fossils So Important?'"},
+    {q:"What overall theme does the article's title and conclusion emphasize about dinosaurs?", o:["They were simply 'big lizards' with no importance","They were important beyond being big creatures, offering insight into life's history","They are purely mythical creatures","They have no connection to modern animals"], c:"B", h:"Think back to the article's opening line, which pushes back against a common misconception."}
+  ];
+
+  function makeBankQuiz(count) {
+    const shuffled = [...DINO_BANK].sort(() => Math.random() - 0.5).slice(0, count);
+    return {
+      total_questions: shuffled.length,
+      questions: shuffled.map((item, idx) => ({
+        id: idx + 1,
+        question: item.q,
+        options: item.o.map((opt, oi) => `${["A","B","C","D"][oi]}) ${opt}`),
+        correct_answer: item.c,
+        hint: item.h
+      }))
+    };
+  }
+
+  const BANNERS = {
+    custom: `<defs><linearGradient id="gCustom" x1="0" x2="1"><stop offset="0" stop-color="#7c3aed"/><stop offset="1" stop-color="#3b82f6"/></linearGradient></defs>
+      <rect width="700" height="180" fill="#12121e"/>
+      <circle cx="600" cy="45" r="26" fill="url(#gCustom)" opacity="0.85"/>
+      <rect x="60" y="70" width="220" height="14" rx="7" fill="#2a2a3a"/>
+      <rect x="60" y="96" width="340" height="14" rx="7" fill="#2a2a3a"/>
+      <rect x="60" y="122" width="180" height="14" rx="7" fill="#2a2a3a"/>
+      <text x="60" y="45" fill="#a78bfa" font-size="20" font-family="Segoe UI, sans-serif" font-weight="700">Write or paste any text</text>`,
+    dinosaur: `<defs><linearGradient id="gSky" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#241a3d"/><stop offset="1" stop-color="#0f0f17"/></linearGradient></defs>
+      <rect width="700" height="180" fill="url(#gSky)"/>
+      <circle cx="610" cy="40" r="24" fill="#f0c774" opacity="0.9"/>
+      <path d="M0,150 Q100,110 220,150 T440,150 T700,150 L700,180 L0,180 Z" fill="#1a1a28"/>
+      <path d="M0,165 Q120,135 260,165 T520,165 T700,160 L700,180 L0,180 Z" fill="#12121e"/>
+      <g fill="#2f2a4f">
+        <ellipse cx="180" cy="150" rx="55" ry="24"/>
+        <ellipse cx="150" cy="128" rx="20" ry="16"/>
+        <path d="M240,150 Q280,90 260,60 Q285,90 250,150 Z"/>
+        <rect x="90" y="150" width="10" height="26"/>
+        <rect x="150" y="150" width="10" height="26"/>
+      </g>
+      <g fill="#a78bfa">
+        <path d="M420,160 Q430,90 480,60 Q470,100 500,110 Q480,110 470,130 Q490,135 495,150 Q460,145 450,160 Q460,165 455,170 Q430,168 420,160 Z"/>
+        <circle cx="487" cy="70" r="3" fill="#0f0f17"/>
+      </g>
+      <text x="30" y="40" fill="#a78bfa" font-size="18" font-family="Segoe UI, sans-serif" font-weight="700">Why Were Dinosaurs Important?</text>`,
+    lighthouse: `<defs><linearGradient id="gNight" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#0d1b3d"/><stop offset="1" stop-color="#0f0f17"/></linearGradient></defs>
+      <rect width="700" height="180" fill="url(#gNight)"/>
+      <circle cx="120" cy="40" r="20" fill="#e8e8f0" opacity="0.9"/>
+      <circle cx="112" cy="34" r="20" fill="#0d1b3d"/>
+      <path d="M0,150 Q150,130 300,150 T700,150 L700,180 L0,180 Z" fill="#122048"/>
+      <path d="M0,160 Q180,145 360,160 T700,158 L700,180 L0,180 Z" fill="#0a1530"/>
+      <g>
+        <polygon points="560,150 590,60 620,150" fill="#e8e8f0"/>
+        <rect x="580" y="60" width="20" height="14" fill="#f0c774"/>
+        <rect x="565" y="150" width="50" height="10" fill="#3a3a4a"/>
+        <polygon points="575,150 605,150 600,120 580,120" fill="#c7c7d8"/>
+        <polygon points="590,60 630,90 590,90" fill="#f0c774" opacity="0.35"/>
+      </g>
+      <text x="30" y="40" fill="#a78bfa" font-size="18" font-family="Segoe UI, sans-serif" font-weight="700">The Lighthouse Keeper's Secret</text>`
+  };
+
+  function drawBanner(key) {
+    document.getElementById("banner").innerHTML = BANNERS[key] || BANNERS.custom;
+  }
+
+  function applyPreset() {
+    const key = document.getElementById("presetSelect").value;
+    const textarea = document.getElementById("storyInput");
+    const bankRow = document.getElementById("bankRow");
+    const bankNote = document.getElementById("bankNote");
+    const useBankCheckbox = document.getElementById("useBankCheckbox");
+
+    drawBanner(key);
+
+    if (key === "custom") {
+      textarea.value = "";
+      bankRow.style.display = "none";
+      textarea.readOnly = false;
+    } else {
+      textarea.value = STORIES[key];
+      textarea.readOnly = false;
+      bankRow.style.display = (key === "dinosaur") ? "block" : "none";
+    }
+
+    if (key === "dinosaur") {
+      useBankCheckbox.checked = true;
+      bankNote.style.display = "block";
+    } else {
+      bankNote.style.display = "none";
+    }
+  }
+
+  function toggleBankNote() {
+    const note = document.getElementById("bankNote");
+    if (!note) return;
+    note.style.display = document.getElementById("useBankCheckbox").checked ? "block" : "none";
+  }
+
+  async function generateQuiz() {
+    const preset = document.getElementById("presetSelect").value;
+    const story = document.getElementById("storyInput").value.trim();
+    const questionCount = parseInt(document.getElementById("countInput").value, 10);
+    const useBank = preset === "dinosaur" && document.getElementById("useBankCheckbox").checked;
+    const btn = document.getElementById("generateBtn");
+    const loading = document.getElementById("loading");
+    const errorBox = document.getElementById("errorBox");
+    const output = document.getElementById("quizOutput");
+
+    errorBox.style.display = "none";
+    output.innerHTML = "";
+    currentAnswers = {};
+
+    if (!story) { showError("Please choose a preset or enter your own story first!"); return; }
+    if (!questionCount || questionCount < 1) { showError("Please choose a valid number of questions."); return; }
+
+    if (useBank) {
+      renderQuiz(makeBankQuiz(questionCount));
+      return;
+    }
+
+    btn.disabled = true;
+    loading.style.display = "block";
+
+    try {
+      const response = await fetch("/api/generate-quiz", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ story, question_count: questionCount }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) { showError(data.error || "Something went wrong."); return; }
+
+      renderQuiz(data);
+    } catch (err) {
+      showError("Could not reach the server. Is it running?");
+    } finally {
+      btn.disabled = false;
+      loading.style.display = "none";
+    }
+  }
+
+  function renderQuiz(data) {
+    const output = document.getElementById("quizOutput");
+    let html = `
+      <div class="card">
+        <div class="quiz-title">Your Quiz — ${data.total_questions} question${data.total_questions > 1 ? "s" : ""}</div>
+        <div class="score-bar">
+          <span>Score</span>
+          <span class="score-value" id="scoreDisplay">0 / ${data.total_questions}</span>
+        </div>
+    `;
+
+    data.questions.forEach((q, i) => {
+      html += `
+        <div class="question-card">
+          <div class="question-text">${q.id}. ${escHtml(q.question)}</div>
+          <div class="options">
+            ${q.options.map((opt, oi) => {
+              const letter = ["A","B","C","D"][oi];
+              return `<div class="option" id="opt-${i}-${letter}"
+                onclick="selectAnswer(${i}, '${letter}', '${q.correct_answer}', ${data.total_questions})"
+              >${escHtml(opt)}</div>`;
+            }).join("")}
+          </div>
+          <div class="action-row">
+            ${q.hint ? `<button class="reveal-btn hint-btn" onclick="toggleHint(${i})">💡 Show hint</button>` : ""}
+            <button class="reveal-btn" onclick="revealAnswer(${i}, '${q.correct_answer}')">Show answer</button>
+          </div>
+          ${q.hint ? `<div class="hint-text" id="hint-${i}">${escHtml(q.hint)}</div>` : ""}
+        </div>
+      `;
+    });
+
+    html += `</div>`;
+    output.innerHTML = html;
+  }
+
+  function toggleHint(qIndex) {
+    const el = document.getElementById(`hint-${qIndex}`);
+    if (el) el.style.display = (el.style.display === "block") ? "none" : "block";
+  }
+
+  function selectAnswer(qIndex, chosen, correct, total) {
+    if (currentAnswers[qIndex] !== undefined) return;
+    currentAnswers[qIndex] = chosen;
+    const chosenEl = document.getElementById(`opt-${qIndex}-${chosen}`);
+    const correctEl = document.getElementById(`opt-${qIndex}-${correct}`);
+    if (chosen === correct) { chosenEl.classList.add("correct"); }
+    else { chosenEl.classList.add("wrong"); correctEl.classList.add("reveal"); }
+    updateScore(total);
+  }
+
+  function revealAnswer(qIndex, correct) {
+    const el = document.getElementById(`opt-${qIndex}-${correct}`);
+    if (el) el.classList.add("reveal");
+  }
+
+  function updateScore(total) {
+    let score = 0;
+    Object.keys(currentAnswers).forEach(i => {
+      const el = document.getElementById(`opt-${i}-${currentAnswers[i]}`);
+      if (el && el.classList.contains("correct")) score++;
+    });
+    document.getElementById("scoreDisplay").textContent = `${score} / ${total}`;
+  }
+
+  function showError(msg) {
+    const box = document.getElementById("errorBox");
+    box.textContent = msg;
+    box.style.display = "block";
+  }
+
+  function escHtml(str) {
+    return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+
+  // init
+  drawBanner("custom");
+</script>
+</body>
+</html>
