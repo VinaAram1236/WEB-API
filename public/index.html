@@ -81,6 +81,12 @@
     </div>
 
     <div class="form-row">
+      <label>Server auth key</label>
+      <input type="text" id="apiKeyInput" value="LOCAL_DEV_KEY" disabled>
+      <small style="color:#888; display:block; margin-top:6px;">This field is fixed for local development. Do not paste your OpenAI secret here.</small>
+    </div>
+
+    <div class="form-row">
       <label>Number of questions: <span class="count-display" id="countLabel">3</span></label>
       <input type="range" id="countInput" min="1" max="50" value="3" oninput="document.getElementById('countLabel').textContent = this.value">
     </div>
@@ -304,6 +310,8 @@ Years later, after Mara had passed, a young keeper found the logbook in a drawer
     if (!story) { showError("Please choose a preset or enter your own story first!"); return; }
     if (!questionCount || questionCount < 1) { showError("Please choose a valid number of questions."); return; }
 
+    const apiKey = "LOCAL_DEV_KEY";
+
     if (useBank) {
       renderQuiz(makeBankQuiz(questionCount));
       return;
@@ -313,9 +321,10 @@ Years later, after Mara had passed, a young keeper found the logbook in a drawer
     loading.style.display = "block";
 
     try {
+      console.log('Sending API key:', apiKey);
       const response = await fetch("/api/generate-quiz", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-api-key": apiKey },
         body: JSON.stringify({ story, question_count: questionCount }),
       });
 
